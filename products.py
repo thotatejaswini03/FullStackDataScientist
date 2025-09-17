@@ -2,12 +2,10 @@ import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
-
 sb: Client = create_client(url, key)
 
 def create_product():
@@ -20,34 +18,40 @@ def create_product():
 
 def list_products():
     resp = sb.table("products").select("*").execute()
-    products = resp.data
     print("\nProducts List:")
-    for p in products:
-        print(f"{p['prod_id']}: {p['name']} - ${p['price']} (Stock: {p['stock']})")
+    for product in resp.data:
+        print(f"{product['prod_id']}: {product['name']} - ${product['price']} (Stock: {product['stock']})")
+    print()
 
 def update_product():
     prod_id = int(input("Enter product ID to update: ").strip())
     name = input("Enter new name (leave blank to skip): ").strip()
-    price_input = input("Enter new price (leave blank to skip): ").strip()
-    stock_input = input("Enter new stock (leave blank to skip): ").strip()
+    price = input("Enter new price (leave blank to skip): ").strip()
+    stock = input("Enter new stock (leave blank to skip): ").strip()
 
-    updates = {}
+    data = {}
     if name:
-        updates["name"] = name
-    if price_input:
-        updates["price"] = float(price_input)
-    if stock_input:
-        updates["stock"] = int(stock_input)
+        data["name"] = name
+    if price:
+        data["price"] = float(price)
+    if stock:
+        data["stock"] = int(stock)
 
-    if updates:
-        resp = sb.table("products").update(updates).eq("prod_id", prod_id).execute()
+    if data:
+        resp = sb.table("products").update(data).eq("prod_id", prod_id).execute()
         print("Product updated:", resp.data)
     else:
-        print("No updates provided.")
+        print("No changes made.")
 
 def delete_product():
     prod_id = int(input("Enter product ID to delete: ").strip())
-    # Optional: Check if product exists before deleting
+
+    # Check if product is referenced in order_items
+    ref_check = sb.table("order_items").select("*").eq("prod_id", prod_id).execute()
+    if ref_check.data:
+        print("Cannot delete this product because it's referenced in existing orders.")
+        return
+
     resp = sb.table("products").delete().eq("prod_id", prod_id).execute()
     print("Product deleted:", resp.data)
 
@@ -59,8 +63,8 @@ def menu():
         print("3. Update Product")
         print("4. Delete Product")
         print("0. Exit")
-        choice = input("Enter choice: ").strip()
 
+        choice = input("Enter choice: ").strip()
         if choice == "1":
             create_product()
         elif choice == "2":
@@ -73,7 +77,7 @@ def menu():
             print("Exiting...")
             break
         else:
-            print("Invalid choice. Try again.")
+            print("Invalid choice. Please try again.")
 
 if __name__ == "__main__":
     menu()
